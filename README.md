@@ -2,8 +2,8 @@
 
 Udacity Project on Data Visualization with D3.js for AIRBUS Data Analyst Nanodegree Program.
 
-Tile: CoViD-19 Spread around the World  
-Author: Pankaj NATH
+**Title**: CoViD-19 Spread around the World  
+**Author**: Pankaj NATH
 
 `File Name`|`Issue`|`Date`|`Reason for Revision`
 -----------|-------|------|---------------------
