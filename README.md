@@ -24,7 +24,7 @@ I have implemented the martini glass narrative style in my visualization. When t
   
 At this stage I hosted my data vizualization via GitHub and requested my colleagues for their feedback. Find below the screenshot of visualization on which I recieved feedbacks.  
   
-![html_1](https://photos.app.goo.gl/UYq6EnnwVPXNqXU36)  
+![](images/Capture_html_1.JPG)  
   
 ### Feedbacks  
 I recieved feedbacks from 8 of my colleagues and then implemented some of them into my work to improve my intended visualization. I list below the recieved feedbacks in two categories based upon if those were implemented or not.  
@@ -45,7 +45,7 @@ I recieved feedbacks from 8 of my colleagues and then implemented some of them i
 #### Final Visualization  
 After implenting the above feedbacks as discussed, I also incorporated the percentage of total cases of individual countries into the legend and tool tip. Also along with the data source, I added  some explanatory text. Asthetically, I included the map and slider in two different border boxes. Below is the screenshot of my final visualization.  
   
-![html_final](https://photos.app.goo.gl/XJnEYjBLME7qvsA19)  
+![](images/Capture_html_final.JPG)  
 
 ### Resources  
 Covid Data source: [https://ourworldindata.org/coronavirus-source-data]  
