@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="https://d3js.org/d3.v3.min.js"></script>
+  <script src="https://d3js.org/d3.v4.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/date-fns/1.29.0/date_fns.min.js"></script>
+  <link rel="icon" href="data:;base64,=">
+    <style>
+		circle {
+			fill: orange;
+			stroke: red;
+			stroke-width: 0.7;
+			opacity: 0.7;
+		}
+		
+		h2 {
+			text-align: center;
+			color: black;
+		}
+		
+		#tooltip {
+			color: black;
+			font-size: 15px;
+		}
+
+		body {
+			font-family:"avenir next", Arial, sans-serif;
+			font-size: 12px;
+			color: #696969;
+		}
+
+		.ticks {
+			font-size: 10px;
+		}
+
+		.track,
+		.track-inset,
+		.track-overlay {
+			stroke-linecap: round;
+		}
+
+		.track {
+			stroke: #000;
+			stroke-opacity: 0.3;
+			stroke-width: 10px;
+		}
+
+		.track-inset {
+			stroke: #dcdcdc;
+			stroke-width: 8px;
+		}
+
+		.track-overlay {
+			pointer-events: stroke;
+			stroke-width: 50px;
+			stroke: transparent;
+			cursor: crosshair;
+		}
+
+		.handle {
+			fill: #fff;
+			stroke: #000;
+			stroke-opacity: 0.5;
+			stroke-width: 1.25px;
+		}
+		
+		.slider {
+			position: absolute;
+			left: 300px;
+			top: 50px;
+			width: 120px;
+		}
+		
+		.d3-tip {
+			line-height: 1;
+			font-weight: bold;
+			padding: 12px;
+			background: rgba(0, 0, 0, 0.8);
+			color: #fff;
+			border-radius: 2px;
+		}
+		
+		td, th {
+			padding: 1px 4px;
+		}
+		
+		svg {
+			display: block;
+			border: 3px solid gray;
+		}
+    </style>
+	<div id="slider"></div>
+    <script type="text/javascript">  
+    function draw(geo_data) {
+        "use strict";
+        var margin = 20,
+            width = 1350 - margin,
+            height = 600 - margin;
+		
+		// Create SVG viewport
+        d3.select("body")
+			.append("h2")
+			.text("CoViD-19 Spread Status");
+			
+		var svg = d3.select("body")
+            .append("svg")
+            .attr("width", width + margin)
+            .attr("height", height + margin)
+            .append('g')
+            .attr('class', 'map');
+			
+		// Defining map projection
+		var projection = d3.geo.mercator()
+			.scale(150)
+			.translate([width / 2, height / 2]);
+		
+		// Defining path generator
+		var path = d3.geo.path().projection(projection);
+		
+		var map = svg.selectAll('path')
+			.data(geo_data.features)
+			.enter()
+			.append('path')
+			.attr('d', path)
+			.style('fill', 'rgb(9, 200, 217)')
+			.style('stroke', 'white')
+			.style('stroke-width', 0.5)
+			.style('align', 'right');		
+			
+		function plot_points(data) {
+			// Find Start and End dates from data
+			var minDate = d3.min(data, function(d) { return d['date']; });
+			var maxDate = d3.max(data, function(d) { return d['date']; });
+			
+			// Listing all unique dates
+			var dates = dateFns.eachDay(new Date(minDate), new Date(maxDate));
+			
+			// Function to sort data by date in ascending order
+			function sortByDateAscending(a, b) {
+				return a.date - b.date;
+			}
+			data = data.sort(sortByDateAscending);
+			
+			var case_max = d3.max(data, function(d) {
+                return Math.ceil((d['total_cases'] / d['percent_world']) * 100);
+            });
+			
+			// Radius of circles		
+			var radius = d3.scale.sqrt()
+                .domain([0, case_max])
+                .range([0, 50]);
+			
+			// Function to mimic sleep in D3
+			function sleep(milliseconds) {
+				const tic = Date.now();
+				let currentDate = null;
+				do {
+					currentDate = Date.now();
+				}	while (currentDate - tic < milliseconds);
+			}
+			
+			// Add circles:
+			svg.append('g')
+				.attr("class", "bubble")
+				.selectAll("circle")
+				.data(data)
+				.enter()
+				.append("circle")
+				.attr('cx', function(d){ return projection([d.log, d.lat])[0]; })
+				.attr('cy', function(d){ return projection([d.log, d.lat])[1]; })
+				.attr('r', function(d){ return radius(d.total_cases); })
+			
+			// Add Total case count legend	
+			svg.append('g')
+				.selectAll("text")
+				.data(data)
+				.enter()
+				.append("text")
+				.attr("x", 10)
+				.attr("y", 20)
+				.text( function (d) { return "Total cases in World: " + case_max; })
+				.attr("font-family", "sans-serif")
+				.attr("font-size", "15px")
+				.attr("text-anchor", "start")
+				.attr("fill", "black");
+				
+			// Update function for each date
+			function update(day) {
+				var t_date = day.getUTCDate();
+				var t_mnth = day.getUTCMonth() + 1;
+				var t_year = day.getUTCFullYear();
+				var t_dateStr = t_date + "/" + t_mnth + "/" + t_year;
+
+				var filtered = data.filter(function(d) {
+					var d_date = d['date'].getUTCDate();
+					var d_mnth = d['date'].getUTCMonth() + 1;
+					var d_year = d['date'].getUTCFullYear();
+					var d_dateStr = d_date + "/" + d_mnth + "/" + d_year;
+					return d_dateStr == t_dateStr;
+				});
+				
+				// Update of legend and tooltip
+				d3.select("h2")
+					.text("CoViD-19 Spread as on Date: " + t_dateStr);
+				d3.select('body')
+					.append('div')
+					.attr('id', 'tooltip')
+					.attr('style', 'position: absolute; opacity: 0;');
+				
+				var circles = svg.selectAll('circle')
+					.data(filtered);
+				circles.enter().append('circle');
+				circles.exit().remove();
+				circles
+					.attr('cx', function(d) { return projection([d.log, d.lat])[0]; })
+					.attr('cy', function(d) { return projection([d.log, d.lat])[1]; })
+                    .attr('r', function(d) { return radius(d.total_cases); })
+					.on('mouseover', function(d) {
+						d3.select('#tooltip')
+						.transition()
+						.duration(100)
+						.style('opacity', 1)
+						.text(d.location + ": " + d.total_cases + " cases (" + Math.ceil(d.percent_world) + "%)")
+					})
+					.on('mouseout', function() {
+						d3.select('#tooltip')
+						.style('opacity', 0)
+					})
+					.on('mousemove', function() {
+						d3.select('#tooltip')
+						.style('left', (d3.event.pageX+15) + 'px')
+						.style('top', (d3.event.pageY+15) + 'px')
+					})
+				
+				var case_max_day = d3.max(filtered, function(d) {
+					return Math.ceil((d['total_cases'] / d['percent_world']) * 100);
+				});
+
+				var txt = svg.selectAll('text')
+					.data(filtered);
+				
+				txt.enter().append('text');
+				txt.exit().remove();
+				txt
+					.attr("x", 10)
+					.attr("y", 20)
+					.text( function (d) { return "Total cases in World: " + case_max_day; })
+					.attr("font-family", "sans-serif")
+					.attr("font-size", "15px")
+					.attr("text-anchor", "start")
+					.attr("fill", "black");
+				
+				var sort_data = filtered.sort(function(a, b){
+					return b.total_cases - a.total_cases;
+				});
+
+				var tab_data = sort_data.filter(function(d, i){ return i < 15 });
+				
+				for(var i = 0; i < tab_data.length; i++) {		
+					var country_name = tab_data[i].location;
+					var cases_in = tab_data[i].total_cases;
+					var ratio = Math.ceil(tab_data[i].percent_world);
+					svg.append('g')
+						.selectAll("text")
+						.data(tab_data)
+						.enter()
+						.append("text")
+						.attr("x", 10)
+						.attr("y", 80 + (i * 30))
+						.text(country_name + ": " + cases_in + " (" + ratio + "%)")
+						.attr("font-family", "Courier")
+						.attr("font-size", "15px")
+						.attr("text-anchor", "start")
+						.attr("fill", "black");
+				};
+				// Add explanatory text
+				svg.selectAll("explanatory_text")
+					.data(["China reported very first cases of CoViD-19 in the world on 31st Dec, 2019. As cases grow above 10,000 by end of January 2020, multiple other coutries reported their initial cases but all below 20.", 
+					  "In the absence of air travel restrictions from China to the rest of the world, by begining of March 2020 we observe a new cluster forming over Europe which is a travel hub.",
+					  "By this time USA had two hot spots on the either sides, China across the Pacefic and Europe across the Atlantic. USA was worstly affected by end of March. USA is now in top with highest",
+					  "cases in world. Higher rate of CoViD-19 spread can be accounted to unrestricted air travel. Countries such as India restricted the air travel both International and Domestic and managed very well",
+					  "compared to other highly populated countries such as China and Brazil. As soon as India allowed domestic travel, the cases started to rise and India now entered list of top 10 impacted countries."])
+					.enter()
+					.append("text")
+					  .attr("x", 250)
+					  .attr("y", function(d, i) { return 500 + i * 14; } )
+					  .style("font-size", "11px")
+					  .style("color", "Black")
+					  .style("font-family", "sans-serif")
+					  .text(function (d) { return d; });
+
+				//Add data source note
+				svg.append("text")
+					.attr("x", 915)
+					.attr("y", 580)
+					.style("font-family", "sans-serif")
+					.style("font-size", "10px")
+					.attr("text-align", "right")
+					.text("Data source: www.ourworldindata.org/coronavirus-source-data")
+			}
+			
+			var day_idx = 0;
+			var day_interval = setInterval(function() {
+			
+				// Pausing the first map status using sleep before animation starts
+				if(day_idx < 1) {
+					sleep(2000);
+				}
+					
+				update(dates[day_idx]);
+				
+				day_idx++;
+				
+				// Add Slider when animation reaches max date
+				if(day_idx >= dates.length) {
+					clearInterval(day_interval);
+
+					var formatDateIntoYear = d3.time.format("%m-%Y");
+					var formatDate = d3.time.format("%b %Y");
+						
+					var Smargin = {top:0, right:50, bottom:0, left:50},
+					Swidth = 1300 - 50,
+					Sheight = 100 - 20;
+		
+					var svgSlider = d3.select("#slider")
+						.append("svg")
+						.attr("width", Swidth + Smargin.left + Smargin.right)
+						.attr("height", Sheight)
+						.style('align', 'middle');
+					
+					var x = d3.scaleTime()
+						.domain([minDate, maxDate])
+						.range([0, Swidth])
+						.clamp(true);
+
+					var slider = svgSlider.append("g")
+						.attr("class", "slider")
+						.attr("transform", "translate(50,50)");
+
+					slider.append("line")
+						.attr("class", "track")
+						.attr("x1", x.range()[0])
+						.attr("x2", x.range()[1])
+						.select(function() { return this.parentNode.appendChild(this.cloneNode(true)); })
+						.attr("class", "track-inset")
+						.select(function() { return this.parentNode.appendChild(this.cloneNode(true)); })
+						.attr("class", "track-overlay")
+						.call(d3.drag()
+						.on("start.interrupt", function() { slider.interrupt(); })
+						.on("start drag", function() { Supdate(x.invert(d3.event.x)); }));
+					
+					slider.insert("g", ".track-overlay")
+						.attr("class", "ticks")
+						.attr("transform", "translate(0," + 18 + ")")
+						.selectAll("text")
+						.data(x.ticks(10))
+						.enter()
+						.append("text")
+						.attr("x", x)
+						.attr("y", 10)
+						.attr("text-anchor", "middle")
+						.text(function(d) { return formatDateIntoYear(d); });
+
+					var handle = slider.insert("circle", ".track-overlay")
+						.attr("class", "handle")
+						.attr("r", 9);
+
+					var label = slider.append("text")  
+						.attr("class", "label")
+						.attr("text-anchor", "middle")
+						.text(formatDate(minDate))
+						.attr("transform", "translate(0," + (-25) + ")")
+						
+					// Update map as per user input from slider
+					function Supdate(h) {
+						// update position and text of label according to slider scale
+						handle.attr("cx", x(h));
+						label
+							.attr("x", x(h))
+							.text(formatDate(h));
+
+						update(h);
+					}
+				};
+			}, 250);
+		};
+
+		var format = d3.time.format("%Y-%m-%d");
+		
+		// Loading TSV data and changing data format from string
+		d3.tsv("covid-data-29052020.tsv", function(d) {
+		//d3.tsv("test_small.tsv", function(d) {
+			d['percent_world'] = +d['percent_world'];
+			d['total_cases'] = +d['total_cases'];
+			d['date'] = format.parse(d['date']);
+			d['lat'] = +d['lat'];
+			d['log'] = +d['log'];
+			return d;
+		}, plot_points);
+    };	  
+    </script>
+</head>
+<body>
+  <script type="text/javascript">
+  //Use D3 to load the GeoJSON file
+  d3.json("world-map.json", draw);
+  </script>
+</body>
+</html>
